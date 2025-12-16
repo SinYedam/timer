@@ -1,806 +1,90 @@
-<html lang="ko"><head>
+<!DOCTYPE html>
+<html lang="ko">
+<head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Y2K Tamagotchi Clock &amp; Pomodoro</title>
-    <!-- 갈무리 폰트 로드 (Galmuri9, Galmuri11 등 포함) -->
+    <title>다마고치 위젯 생성기</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/galmuri@latest/dist/galmuri.css">
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        html, body {
-            margin: 0;
-            padding: 0;
-            width: 337px;
-            height: 333px;
-            overflow: hidden;
-            min-width: 337px;
-            min-height: 333px;
-        }
-
-        body {
-            background-color: transparent;
-            font-family: 'Galmuri9', sans-serif;
-            display: block;
-            width: 337px;
-            height: 333px;
-            user-select: none;
-            position: relative;
-        }
-
-        /* 다마고치 전체 컨테이너 - 337x333px 완전 고정 */
-        .tamagotchi-container {
-            position: relative;
-            width: 337px;
-            height: 333px;
-            min-width: 337px;
-            min-height: 333px;
-            filter: drop-shadow(0 5px 6px rgba(0, 0, 0, 0.05));
-            animation: float 6s ease-in-out infinite;
-        }
-
-
-        /* 내부 스크린 영역 (LCD) - 완전 고정 px */
-        .screen-overlay {
-            position: absolute;
-            z-index: 10; 
-            top: 81px;
-            left: 92px;
-            width: 150px;
-            height: 173px;
-            
-            /* 배경색 */
-            background-color: #2f2f2f; 
-            border-radius: 5px; 
-            box-shadow: inset 0 0 13px rgba(0,0,0,0.15);
-            overflow: hidden; 
-            
-            /* 패딩 수정: 상하 패딩을 줄이고 내부에서 gap으로 조절 */
-            padding: 20px 4px 30px 4px; 
-            
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center; /* space-between 대신 중앙 정렬 */
-            
-            /* LCD 격자 무늬 */
-            background-image: 
-                linear-gradient(rgba(0, 0, 0, 0.03) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(0, 0, 0, 0.03) 1px, transparent 1px);
-            background-size: 2.5px 2.5px;
-        }
-
-        /* 1. 스캔라인 효과 - 완전 고정 */
-        .scanlines {
-            position: absolute;
-            top: 0; left: 0; width: 150px; height: 173px;
-            background: linear-gradient(
-                to bottom,
-                rgba(255,255,255,0),
-                rgba(255,255,255,0) 50%,
-                rgba(0,0,0,0.05) 50%,
-                rgba(0,0,0,0.05)
-            );
-            background-size: 150px 4px;
-            z-index: 50;
-            pointer-events: none;
-            animation: scanline-scroll 20s linear infinite; 
-        }
-        @keyframes scanline-scroll {
-            0% { background-position: 0 0; }
-            100% { background-position: 0 100%; }
-        }
-
-        /* 화면 내용 래퍼 - 완전 고정 */
-        .screen-content {
-            width: 150px;
-            height: 100%; /* 부모 높이에 맞춤 */
-            display: flex;
-            flex-direction: column;
-            justify-content: center; /* 중앙 정렬 */
-            gap: 15px; /* 요소 간 간격 */
-            align-items: center;
-            transform-origin: center;
-        }
-
-        /* 2. TV 켜기/끄기 애니메이션 - 속도 조절 (0.5s) */
-        .tv-out {
-            animation: turn-off 0.5s cubic-bezier(0.23, 1, 0.32, 1) forwards;
-        }
-        .tv-in {
-            animation: turn-on 0.5s cubic-bezier(0.23, 1, 0.32, 1) forwards;
-        }
-
-        @keyframes turn-off {
-            0% { transform: scale(1, 1); filter: brightness(1); opacity: 1; }
-            50% { transform: scale(1, 0.02); filter: brightness(1.5); opacity: 1; }
-            100% { transform: scale(0, 0); filter: brightness(0); opacity: 0; }
-        }
-        @keyframes turn-on {
-            0% { transform: scale(0, 0); filter: brightness(0); opacity: 0; }
-            50% { transform: scale(1, 0.02); filter: brightness(1.5); opacity: 1; }
-            100% { transform: scale(1, 1); filter: brightness(1); opacity: 1; }
-        }
-
-        /* 상단 텍스트 - 337px 기준 */
-        .top-text {
-            font-family: 'Galmuri9', sans-serif;
-            font-size: 0.75rem; 
-            font-weight: bold;
-            color: #ce1010;
-            letter-spacing: -0.4px;
-            text-transform: uppercase;
-            min-height: 1rem;
-            text-align: center;
-            margin-top: 0;
-            display: flex; 
-            align-items: center;
-            justify-content: center;
-            gap: 3px; 
-        }
-
-        /* 메인 디스플레이 - 완전 고정 */
-        .main-display {
-            font-family: 'Galmuri11', sans-serif;
-            font-weight: bold;
-            font-size: 2.08rem; 
-            line-height: 1;
-            color: #e3e3e3;
-            text-shadow: 1.7px 1.7px 0px rgba(0,0,0,0.05);
-            display: flex;
-            align-items: baseline;
-            justify-content: center;
-            width: 150px;
-            text-align: center;
-            margin-top: 0; /* 마진 제거 (gap으로 조절) */
-        }
-
-        .ampm {
-            font-family: 'Galmuri9', sans-serif;
-            font-size: 0.7rem;
-            color: #ce1010;
-            margin-left: 4px;
-        }
-
-        /* 3. 슬롯머신 효과 (숫자 롤링) - 속도 조절 (1.0s) */
-        .rolling-digit {
-            display: inline-block;
-            animation: roll-down 1.0s cubic-bezier(0.34, 1.56, 0.64, 1);
-        }
-        @keyframes roll-down {
-            0% { transform: translateY(-50%); opacity: 0; }
-            100% { transform: translateY(0); opacity: 1; }
-        }
-
-        /* 하단 아이콘 + 멘트 영역 - 완전 고정 */
-        .icon-area {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            width: 150px;
-            gap: 3px;
-            color: #ce1010;
-            height: 20px;
-            margin-bottom: 0;
-            position: relative; 
-        }
-
-        /* 하단 멘트 텍스트 스타일 - 337px 기준 */
-        .bottom-text {
-            font-family: 'Galmuri9', sans-serif; 
-            font-size: 0.54rem; 
-            color: #e3e3e3;
-            font-weight: bold;
-            letter-spacing: -0.4px;
-            white-space: nowrap;
-            margin-top: 0;
-        }
-        
-        /* 버튼 영역 - 완전 고정 px */
-        .button-group {
-            position: absolute;
-            bottom: 37px; 
-            left: 74px;
-            width: 189px; 
-            height: 47px;
-            color: #ce1010;
-            z-index: 30;
-            display: grid;
-            grid-template-columns: 1fr 1fr 1fr;
-            justify-items: center;
-            align-items: center;
-            pointer-events: auto;
-        }
-
-        .control-btn {
-            width: 31px; 
-            height: 23px;
-            border-radius: 20%;
-            cursor: pointer;
-            transition: all 0.1s;
-
-            /* ▼▼▼ 이 부분을 추가/수정해서 색을 입힙니다 ▼▼▼ */
-            background-color: #ffffff;  /* 흰색 배경 */
-            border: 2px solid #000000;  /* 검은색 테두리 */
-
-        }
-
-        /* 개별 버튼 위치 미세 조정 - 337px 기준 */
-        #btnLeft {
-            transform: translate(5px); 
-        }
-
-        #btnCenter {
-            transform: translateX(); 
-        }
-
-        #btnRight { 
-            transform: translate(-5px); 
-        }
-
-
-        /* 알림 모달 - 완전 고정 px */
-        .modal-overlay {
-            position: absolute;
-            top: 0; left: 0; width: 337px; height: 333px;
-            background: #ce1010;
-            z-index: 50;
-            display: none;
-            justify-content: center;
-            align-items: center;
-            border-radius: 5px;
-            backdrop-filter: blur(1.7px);
-        }
-        .modal-box {
-            background: #f3e0f0;
-            padding: 20px 17px 16px 17px;
-            border-radius: 7px;
-            text-align: center;
-            width: 286px;
-            border: 2.5px solid #ce1010;
-            box-shadow: 3.4px 3.4px 0px rgba(0,0,0,0.2);
-            font-family: 'Galmuri9', sans-serif;
-            animation: modal-pop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-        }
-        @keyframes modal-pop {
-            0% { transform: scale(0.5); opacity: 0; }
-            100% { transform: scale(1); opacity: 1; }
-        }
-        .modal-title {
-            font-family: 'Galmuri11', sans-serif;
-            font-size: 0.77rem;
-            font-weight: bold;
-            color: #ce1010;
-            margin-bottom: 12px;
-            letter-spacing: -0.4px;
-        }
-        .modal-btn {
-            background: #ce1010;
-            color: #f3e0f0;
-            border: none;
-            padding: 7px 20px;
-            cursor: pointer;
-            font-family: 'Galmuri9', sans-serif;
-            font-size: 0.75rem;
-            font-weight: bold;
-            border-radius: 3px;
-            box-shadow: 1.7px 1.7px 0px rgba(0,0,0,0.2);
-            transition: all 0.1s;
-        }
-        .modal-btn:hover {
-            background: #cfcfcf;
-            transform: translate(-0.8px, -0.8px);
-            box-shadow: 2.5px 2.5px 0px rgba(0,0,0,0.2);
-        }
-        .modal-btn:active {
-            transform: translate(0.8px, 0.8px);
-            box-shadow: 0.8px 0.8px 0px rgba(0,0,0,0.2);
-        }
-
-        /* SVG 스타일 - 337px 기준 */
-        .pixel-svg { 
-            width: 17px; 
-            height: 17px; 
-            fill: #ce1010; 
-            image-rendering: pixelated; 
-            shape-rendering: crispEdges; 
-        }
-        .box-icon {
-            width: 10px;
-            height: 10px;
-            fill: #222222;
-            image-rendering: pixelated;
-            shape-rendering: crispEdges;
-        }
-        .mini-icon {
-            width: 12px;
-            height: 12px;
-            fill: #ce1010;
-            vertical-align: middle;
-            display: inline-block;
-        }
-        
-        .heart-beat { 
-            animation: beat 2.5s infinite steps(2); 
-            width: 7px; 
-            height: 7px; 
-        }
-        
-        /* 트랙 위 하트 */
-        .runner-heart {
-            position: absolute;
-            top: 50%;
-            z-index: 2;
-            transition: left 1s linear; 
-            transform: translate(-50%, -50%);
-        }
-        .runner-heart svg {
-            width: 12px;
-            height: 12px;
-            fill: #ce1010;
-        }
-        
-        @keyframes beat { 
-            0% { transform: scale(1); } 
-            50% { transform: scale(1.2); } 
-            100% { transform: scale(1); } 
-        }
-        
-        /* 깜빡임 속도 조절 */
-        @keyframes blink { 
-            0%, 49% { opacity: 1; } 
-            50%, 100% { opacity: 0; } 
-        }
-        .colon { 
-            animation: blink 1s steps(2, start) infinite; 
-            margin: 0 -4px; 
-        } 
-        .colon.paused { animation: none; opacity: 1; }
-        
-        /* 애니메이션 */
-        @keyframes float { 0% { transform: translateY(0px); } 50% { transform: translateY(-8px); } 100% { transform: translateY(0px); } }
-
-        /* 트랙 스타일 - 완전 고정 px */
-        .track-container {
-            width: 108px; 
-            position: relative;
-            height: 20px;
-            display: flex;
-            align-items: center;
-        }
-        .track-line {
-            width: 108px;
-            border-bottom: 1.7px dotted #ce1010; 
-            position: absolute;
-            top: 50%; 
-            transform: translateY(-50%); 
-            z-index: 1;
-        }
-
-        /* D-Day 마감 박스 스타일 - 337px 기준 */
-        .dday-info-box {
-            background-color: #3d3d3d;
-            color: #f3f4f6;
-            padding: 3px 7px;
-            border-radius: 3px;
-            font-size: 0.495rem;
-            display: flex;
-            align-items: center;
-            gap: 4px;
-            box-shadow: 0.8px 0.8px 0px rgba(0,0,0,0.1);
-            margin-top: 1.7px;
-        }
+        body { background-color: #000000; font-family: 'Galmuri9', sans-serif; display: flex; justify-content: center; min-height: 100vh; padding: 20px; }
+        .card { background: white; border-radius: 16px; width: 100%; max-width: 480px; padding: 32px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); }
+        .header-title { font-size: 1.5rem; font-weight: bold; text-align: center; color: #374151; margin-bottom: 20px; }
+        .preview-container { background: linear-gradient(135deg, #ffffff, #ffffff   ); border-radius: 12px; padding: 20px; margin-bottom: 24px; text-align: center; border: 2px dashed #a70000; }
+        .pixel-input { width: 100%; padding: 12px; border: 1px solid #d1d5db; border-radius: 8px; margin-top: 5px; font-family: 'Galmuri9'; }
+        .section-title { font-weight: bold; color: #1f2937; display: block; margin-top: 15px; }
+        .generate-btn { background: #202020; color: white; width: 100%; padding: 14px; border-radius: 8px; font-weight: bold; margin-top: 20px; cursor: pointer; }
+        .generate-btn:hover { background: #000000; }
+        .result-box { background: #ffffff; padding: 15px; border-radius: 8px; font-size: 0.8rem; word-break: break-all; margin-top: 10px; border: 2px solid #a70000; color: #343434; }
+        iframe { border: none; width: 340px; height: 340px; transform: scale(0.85); transform-origin: top center; }
     </style>
-<style>*, ::before, ::after{--tw-border-spacing-x:0;--tw-border-spacing-y:0;--tw-translate-x:0;--tw-translate-y:0;--tw-rotate:0;--tw-skew-x:0;--tw-skew-y:0;--tw-scale-x:1;--tw-scale-y:1;--tw-pan-x: ;--tw-pan-y: ;--tw-pinch-zoom: ;--tw-scroll-snap-strictness:proximity;--tw-gradient-from-position: ;--tw-gradient-via-position: ;--tw-gradient-to-position: ;--tw-ordinal: ;--tw-slashed-zero: ;--tw-numeric-figure: ;--tw-numeric-spacing: ;--tw-numeric-fraction: ;--tw-ring-inset: ;--tw-ring-offset-width:0px;--tw-ring-offset-color:#fff;--tw-ring-color:rgb(59 130 246 / 0.5);--tw-ring-offset-shadow:0 0 #0000;--tw-ring-shadow:0 0 #0000;--tw-shadow:0 0 #0000;--tw-shadow-colored:0 0 #0000;--tw-blur: ;--tw-brightness: ;--tw-contrast: ;--tw-grayscale: ;--tw-hue-rotate: ;--tw-invert: ;--tw-saturate: ;--tw-sepia: ;--tw-drop-shadow: ;--tw-backdrop-blur: ;--tw-backdrop-brightness: ;--tw-backdrop-contrast: ;--tw-backdrop-grayscale: ;--tw-backdrop-hue-rotate: ;--tw-backdrop-invert: ;--tw-backdrop-opacity: ;--tw-backdrop-saturate: ;--tw-backdrop-sepia: ;--tw-contain-size: ;--tw-contain-layout: ;--tw-contain-paint: ;--tw-contain-style: }::backdrop{--tw-border-spacing-x:0;--tw-border-spacing-y:0;--tw-translate-x:0;--tw-translate-y:0;--tw-rotate:0;--tw-skew-x:0;--tw-skew-y:0;--tw-scale-x:1;--tw-scale-y:1;--tw-pan-x: ;--tw-pan-y: ;--tw-pinch-zoom: ;--tw-scroll-snap-strictness:proximity;--tw-gradient-from-position: ;--tw-gradient-via-position: ;--tw-gradient-to-position: ;--tw-ordinal: ;--tw-slashed-zero: ;--tw-numeric-figure: ;--tw-numeric-spacing: ;--tw-numeric-fraction: ;--tw-ring-inset: ;--tw-ring-offset-width:0px;--tw-ring-offset-color:#fff;--tw-ring-color:rgb(59 130 246 / 0.5);--tw-ring-offset-shadow:0 0 #0000;--tw-ring-shadow:0 0 #0000;--tw-shadow:0 0 #0000;--tw-shadow-colored:0 0 #0000;--tw-blur: ;--tw-brightness: ;--tw-contrast: ;--tw-grayscale: ;--tw-hue-rotate: ;--tw-invert: ;--tw-saturate: ;--tw-sepia: ;--tw-drop-shadow: ;--tw-backdrop-blur: ;--tw-backdrop-brightness: ;--tw-backdrop-contrast: ;--tw-backdrop-grayscale: ;--tw-backdrop-hue-rotate: ;--tw-backdrop-invert: ;--tw-backdrop-opacity: ;--tw-backdrop-saturate: ;--tw-backdrop-sepia: ;--tw-contain-size: ;--tw-contain-layout: ;--tw-contain-paint: ;--tw-contain-style: }/* ! tailwindcss v3.4.17 | MIT License | https://tailwindcss.com */*,::after,::before{box-sizing:border-box;border-width:0;border-style:solid;border-color:#e5e7eb}::after,::before{--tw-content:''}:host,html{line-height:1.5;-webkit-text-size-adjust:100%;-moz-tab-size:4;tab-size:4;font-family:ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";font-feature-settings:normal;font-variation-settings:normal;-webkit-tap-highlight-color:transparent}body{margin:0;line-height:inherit}hr{height:0;color:inherit;border-top-width:1px}abbr:where([title]){-webkit-text-decoration:underline dotted;text-decoration:underline dotted}h1,h2,h3,h4,h5,h6{font-size:inherit;font-weight:inherit}a{color:inherit;text-decoration:inherit}b,strong{font-weight:bolder}code,kbd,pre,samp{font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;font-feature-settings:normal;font-variation-settings:normal;font-size:1em}small{font-size:80%}sub,sup{font-size:75%;line-height:0;position:relative;vertical-align:baseline}sub{bottom:-.25em}sup{top:-.5em}table{text-indent:0;border-color:inherit;border-collapse:collapse}button,input,optgroup,select,textarea{font-family:inherit;font-feature-settings:inherit;font-variation-settings:inherit;font-size:100%;font-weight:inherit;line-height:inherit;letter-spacing:inherit;color:inherit;margin:0;padding:0}button,select{text-transform:none}button,input:where([type=button]),input:where([type=reset]),input:where([type=submit]){-webkit-appearance:button;background-color:transparent;background-image:none}:-moz-focusring{outline:auto}:-moz-ui-invalid{box-shadow:none}progress{vertical-align:baseline}::-webkit-inner-spin-button,::-webkit-outer-spin-button{height:auto}[type=search]{-webkit-appearance:textfield;outline-offset:-2px}::-webkit-search-decoration{-webkit-appearance:none}::-webkit-file-upload-button{-webkit-appearance:button;font:inherit}summary{display:list-item}blockquote,dd,dl,figure,h1,h2,h3,h4,h5,h6,hr,p,pre{margin:0}fieldset{margin:0;padding:0}legend{padding:0}menu,ol,ul{list-style:none;margin:0;padding:0}dialog{padding:0}textarea{resize:vertical}input::placeholder,textarea::placeholder{opacity:1;color:#9ca3af}[role=button],button{cursor:pointer}:disabled{cursor:default}audio,canvas,embed,iframe,img,object,svg,video{display:block;vertical-align:middle}img,video{max-width:100%;height:auto}[hidden]:where(:not([hidden=until-found])){display:none}</style></head>
+</head>
 <body>
-
-    <div class="tamagotchi-container">
-
-
-        <!-- 디지털 스크린 -->
-        <div class="screen-overlay">
-            <!-- 1. 스캔라인 -->
-            <div class="scanlines"></div>
-
-            <!-- 화면 내용 -->
-            <div id="screenContent" class="screen-content">
-                <div class="top-text" id="topText">2025.12.17 WED</div>
-                <div class="main-display">
-                    <span id="displayContent" style="font-size: 2.08rem;"><span id="hours">05</span><span class="colon">:</span><span id="minutes">20</span><span class="ampm">AM</span></span>
-                </div>
-                <div class="icon-area" id="iconArea"><svg class="pixel-svg heart-beat" viewBox="0 0 8 8" xmlns="http://www.w3.org/2000/svg"><path d="M2 2h2v1h-2z M5 2h2v1h-2z M1 3h7v1h-7z M2 4h5v1h-5z M3 5h3v1h-3z M4 6h1v1h-1z"></path></svg><div class="bottom-text" id="bottomText">시작이 반이다</div><svg class="pixel-svg heart-beat" viewBox="0 0 8 8" xmlns="http://www.w3.org/2000/svg"><path d="M2 2h2v1h-2z M5 2h2v1h-2z M1 3h7v1h-7z M2 4h5v1h-5z M3 5h3v1h-3z M4 6h1v1h-1z"></path></svg></div>
-            </div>
-
-            <!-- 알림 모달 -->
-            <div id="alertModal" class="modal-overlay">
-                <div class="modal-box">
-                    <p class="modal-title" id="alertMessage">TIME'S UP!</p>
-                    <button onclick="document.getElementById('alertModal').style.display='none'; document.getElementById('btnLeft').click();" class="modal-btn">메인 화면으로</button>
-                </div>
-            </div>
+    <div class="card">
+        <h1 class="header-title">다마고치 위젯 생성기</h1>
+        
+        <div class="preview-container">
+            <iframe id="previewFrame" src="widget.html"></iframe>
+            <p style="font-size: 0.8rem; color: #646464; margin-top: -30px;">미리보기 화면입니다</p>
         </div>
 
-        <!-- 버튼 그룹 --> 
-        <div class="button-group">
-            <button class="control-btn" id="btnLeft" title="D-Day / Home"></button>
-            <button class="control-btn" id="btnCenter" title="Timer 1"></button>
-            <button class="control-btn" id="btnRight" title="Timer 2"></button>
+        <div>
+            <label class="section-title">응원 문구</label>
+            <input type="text" id="inputTitle" class="pixel-input" value="안 하는 것보다 무조건 낫다!">
+            
+            <label class="section-title">목표 날짜</label>
+            <input type="date" id="inputDate" class="pixel-input" value="2025-12-25">
+            
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="section-title">타이머 1 (분)</label>
+                    <input type="number" id="inputTimer1" class="pixel-input" value="15">
+                </div>
+                <div>
+                    <label class="section-title">타이머 2 (분)</label>
+                    <input type="number" id="inputTimer2" class="pixel-input" value="30">
+                </div>
+            </div>
+
+            <button onclick="updateWidget()" class="generate-btn">설정 적용 & 주소 생성</button>
+            
+            <label class="section-title" style="margin-top: 20px;">이 주소를 노션에 임베드하세요</label>
+            <div class="result-box" id="resultUrl">주소 생성 버튼을 눌러주세요</div>
+            <button onclick="copyUrl()" class="generate-btn" style="background:#a70000; margin-top:10px;">주소 복사하기</button>
         </div>
     </div>
 
     <script>
-        // 모드 정의 (Timer 1, Timer 2로 일반화)
-        const MODES = {
-            CLOCK: 'clock',
-            DDAY_BIG: 'dday_big',
-            TIMER_1: 'timer_1',
-            TIMER_2: 'timer_2'
-        };
+        // 현재 이 파일이 있는 위치를 자동으로 찾습니다.
+        // 예: https://my-site.vercel.app/
+        const BASE_URL = window.location.href.substring(0, window.location.href.lastIndexOf("/") + 1);
 
-        let currentMode = MODES.CLOCK;
-        let timerInterval = null;
-        let timeLeft = 0;
-        let totalTime = 0; 
-        let isPaused = true;
-        let lastMinute = -1; 
-        let typewriterTimeout = null; 
+        function generateParams() {
+            const title = document.getElementById('inputTitle').value;
+            const date = document.getElementById('inputDate').value;
+            const t1 = document.getElementById('inputTimer1').value;
+            const t2 = document.getElementById('inputTimer2').value;
+            return `?title=${encodeURIComponent(title)}&date=${date}&timer=${t1}&timer2=${t2}`;
+        }
 
-        // 기본 설정값 (URL 파라미터로 덮어씌워짐)
-        let dDayTargetDate = new Date('2025-12-25'); 
-        let myQuote = "안 하는 것보다 무조건 낫다!";
-        let timer1Minutes = 15;
-        let timer2Minutes = 30;
-
-        // DOM 요소
-        const screenContentEl = document.getElementById('screenContent');
-        const topTextEl = document.getElementById('topText');
-        const displayContentEl = document.getElementById('displayContent');
-        const iconAreaEl = document.getElementById('iconArea');
-        const alertModal = document.getElementById('alertModal');
-        const alertMessage = document.getElementById('alertMessage');
-
-        // SVG 데이터
-        const svgs = {
-            heart: `<svg class="pixel-svg heart-beat" viewBox="0 0 8 8" xmlns="http://www.w3.org/2000/svg"><path d="M2 2h2v1h-2z M5 2h2v1h-2z M1 3h7v1h-7z M2 4h5v1h-5z M3 5h3v1h-3z M4 6h1v1h-1z" /></svg>`,
-            heartRunner: `<svg viewBox="0 0 8 8" xmlns="http://www.w3.org/2000/svg"><path d="M2 2h2v1h-2z M5 2h2v1h-2z M1 3h7v1h-7z M2 4h5v1h-5z M3 5h3v1h-3z M4 6h1v1h-1z" /></svg>`,
-            miniClock: `<svg class="mini-icon" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg"><path d="M8 2a6 6 0 1 0 0 12A6 6 0 0 0 8 2zm0 11a5 5 0 1 1 0-10 5 5 0 0 1 0 10z"/><path d="M8.5 4.5a.5.5 0 0 0-1 0v3.293L6.354 8.94a.5.5 0 1 0 .708.708l1.5-1.5A.5.5 0 0 0 8.5 8V4.5z"/></svg>`,
-            calendar: `<svg class="box-icon" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg"><path d="M1 4h14v10H1z M2 5h12v8H2z M3 2h2v1H3z M11 2h2v1h-2z M1 3h1v1H1z M14 3h1v1h-1z M3 6h2v2H3z M6 6h2v2H6z M9 6h2v2H9z M12 6h2v2h-2z M3 9h2v2H3z M6 9h2v2H6z M9 9h2v2H9z" /></svg>`
-        };
-
-        // URL 파라미터 파싱 함수
-        function parseURLParams() {
-            const urlParams = new URLSearchParams(window.location.search);
+        function updateWidget() {
+            const params = generateParams();
+            // 1. 미리보기 업데이트 (widget.html을 iframe 안에서 새로고침)
+            document.getElementById('previewFrame').src = `widget.html${params}`;
             
-            // 1. title (메인 문구)
-            const titleParam = urlParams.get('title');
-            if (titleParam) myQuote = titleParam;
-
-            // 2. date (타겟 날짜)
-            const dateParam = urlParams.get('date');
-            if (dateParam) {
-                // .을 -로 변환하여 호환성 확보
-                const formattedDate = dateParam.replace(/\./g, '-');
-                const parsedDate = new Date(formattedDate);
-                if (!isNaN(parsedDate.getTime())) {
-                    dDayTargetDate = parsedDate;
-                }
-            }
-
-            // 3. timer (타이머 1) & timer2 (타이머 2)
-            const t1 = urlParams.get('timer');
-            if (t1) timer1Minutes = parseTimeInput(t1);
-            
-            const t2 = urlParams.get('timer2');
-            if (t2) timer2Minutes = parseTimeInput(t2);
+            // 2. 최종 주소 생성 (내 도메인 + widget.html + 파라미터)
+            const fullUrl = `${BASE_URL}widget.html${params}`;
+            document.getElementById('resultUrl').innerText = fullUrl;
         }
 
-        // 시간 문자열(15, 2:30)을 분(minutes)으로 변환
-        function parseTimeInput(input) {
-            if (!input) return 15; // 기본값
-            if (input.includes(':')) {
-                const parts = input.split(':');
-                const h = parseInt(parts[0], 10) || 0;
-                const m = parseInt(parts[1], 10) || 0;
-                return h * 60 + m;
-            }
-            return parseInt(input, 10) || 15;
+        function copyUrl() {
+            const text = document.getElementById('resultUrl').innerText;
+            if(text.includes('주소 생성')) return alert('먼저 주소를 생성해주세요!');
+            navigator.clipboard.writeText(text).then(() => alert('복사되었습니다! 노션에 붙여넣고 "임베드 생성"을 누르세요.'));
         }
-
-        // 분(minutes)을 "1H 30M" 또는 "15M" 형식으로 변환
-        function formatMinutesToHM(totalMinutes) {
-            const h = Math.floor(totalMinutes / 60);
-            const m = totalMinutes % 60;
-            if (h > 0 && m > 0) {
-                return `${h}H ${m}M`;
-            } else if (h > 0) {
-                return `${h}H`;
-            } else {
-                return `${m}M`;
-            }
-        }
-
-        // 초(seconds)를 "1H 30M" 또는 "15M 30S" 형식으로 변환 (메인 디스플레이용)
-        function formatSecondsToDisplay(totalSeconds) {
-            const h = Math.floor(totalSeconds / 3600);
-            const m = Math.floor((totalSeconds % 3600) / 60);
-            const s = totalSeconds % 60;
-            
-            if (h > 0) {
-                // 1시간 이상: "1H 30M" 형식 (간격 좁게)
-                return { text: `${h}H<span style="margin: 0 2.5px;"></span>${String(m).padStart(2, '0')}M`, hasHours: true };
-            } else {
-                // 1시간 미만: "MM:SS" 형식
-                return { text: `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`, hasHours: false };
-            }
-        }
-
-        function init() {
-            // URL 파라미터 우선 적용
-            parseURLParams();
-            
-            // 로컬스토리지보다 URL 파라미터가 우선순위가 높도록 설계 (공유 목적)
-            // 필요하다면 여기에 로컬스토리지 로직을 추가하여 URL이 없을 때만 로컬스토리지 사용 가능
-            
-            updateDisplay();
-            setInterval(() => {
-                if (currentMode === MODES.CLOCK) {
-                    updateClock();
-                }
-            }, 1000);
-            updateClock();
-        }
-
-        function getDDayString() {
-            if (!dDayTargetDate) return "NO DATE";
-            const today = new Date();
-            today.setHours(0,0,0,0);
-            const target = new Date(dDayTargetDate);
-            target.setHours(0,0,0,0);
-            const diffTime = target - today;
-            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-            
-            if (diffDays === 0) return "D-DAY";
-            else if (diffDays > 0) return `D-${diffDays}`;
-            else return `D+${Math.abs(diffDays)}`;
-        }
-
-        // --- 2. TV 효과 (화면 전환) ---
-        function switchModeWithTVAnimation(nextModeAction) {
-            screenContentEl.classList.remove('tv-in');
-            screenContentEl.classList.add('tv-out');
-
-            setTimeout(() => {
-                nextModeAction();
-                screenContentEl.classList.remove('tv-out');
-                screenContentEl.classList.add('tv-in');
-            }, 500); 
-        }
-
-        // --- 4. 타자기 효과 (하단 멘트) ---
-        function typeWriter(text, element) {
-            if (typewriterTimeout) clearTimeout(typewriterTimeout);
-            element.innerHTML = '';
-            
-            let i = 0;
-            function type() {
-                if (i < text.length) {
-                    element.innerHTML += text.charAt(i);
-                    i++;
-                    typewriterTimeout = setTimeout(type, 200); 
-                }
-            }
-            type();
-        }
-
-        // --- 버튼 로직 ---
-        document.getElementById('btnLeft').addEventListener('click', () => {
-            switchModeWithTVAnimation(() => {
-                if (currentMode === MODES.TIMER_1 || currentMode === MODES.TIMER_2) {
-                    resetTimer();
-                    currentMode = MODES.CLOCK;
-                } else if (currentMode === MODES.CLOCK) {
-                    currentMode = MODES.DDAY_BIG;
-                } else if (currentMode === MODES.DDAY_BIG) {
-                    currentMode = MODES.CLOCK;
-                }
-                updateDisplay(true); 
-            });
-        });
-
-        document.getElementById('btnCenter').addEventListener('click', () => {
-            if (currentMode === MODES.TIMER_1) {
-                toggleTimer(); 
-            } else {
-                switchModeWithTVAnimation(() => {
-                    startTimer(timer1Minutes, MODES.TIMER_1);
-                });
-            }
-        });
-
-        document.getElementById('btnRight').addEventListener('click', () => {
-            if (currentMode === MODES.TIMER_2) {
-                toggleTimer(); 
-            } else {
-                switchModeWithTVAnimation(() => {
-                    startTimer(timer2Minutes, MODES.TIMER_2);
-                });
-            }
-        });
-
-        function startTimer(minutes, mode) {
-            clearInterval(timerInterval);
-            timerInterval = null; // 인터벌 초기화
-            currentMode = mode;
-            timeLeft = minutes * 60;
-            totalTime = timeLeft; // 전체 시간 저장
-            isPaused = false;
-            updateDisplay(true); 
-            timerInterval = setInterval(tick, 1000);
-        }
-
-        function toggleTimer() {
-            isPaused = !isPaused;
-            updateDisplay(false); 
-        }
-
-        function tick() {
-            if (!isPaused && (currentMode === MODES.TIMER_1 || currentMode === MODES.TIMER_2)) {
-                if (timeLeft > 0) {
-                    timeLeft--;
-                    // 시간 표시 업데이트
-                    const displayFormat = formatSecondsToDisplay(timeLeft);
-                    if (displayFormat.hasHours) {
-                        // 1시간 이상: "1H 30M" 형식
-                        displayContentEl.innerHTML = `<span>${displayFormat.text}</span>`;
-                    } else {
-                        // 1시간 미만: "MM:SS" 형식
-                        const m = Math.floor(timeLeft / 60).toString().padStart(2, '0');
-                        const s = (timeLeft % 60).toString().padStart(2, '0');
-                        displayContentEl.innerHTML = `<span id="hours">${m}</span><span class="colon">:</span><span id="minutes">${s}</span>`;
-                    }
-                    // 하트 위치 업데이트
-                    updateRunnerPosition();
-                } else {
-                    clearInterval(timerInterval);
-                    timerInterval = null;
-                    isPaused = true;
-                    showAlert("TIME'S UP!");
-                    updateDisplay(false);
-                }
-            }
-        }
-
-        function resetTimer() {
-            clearInterval(timerInterval);
-            timerInterval = null;
-            isPaused = true;
-        }
-
-        // --- 화면 갱신 로직 ---
-        function updateDisplay(playTypewriter = false) {
-            iconAreaEl.innerHTML = ''; // 초기화
-            
-            if (currentMode === MODES.CLOCK) {
-                updateClock(); // 시계 렌더링
-                // 하단 멘트 구성
-                iconAreaEl.innerHTML = `${svgs.heart}<div class="bottom-text" id="bottomText"></div>${svgs.heart}`;
-                if(playTypewriter) {
-                    typeWriter(myQuote, document.getElementById('bottomText'));
-                } else {
-                    document.getElementById('bottomText').innerHTML = myQuote;
-                }
-
-            } else if (currentMode === MODES.DDAY_BIG) {
-                topTextEl.textContent = "TARGET DAY";
-                displayContentEl.innerHTML = getDDayString();
-                displayContentEl.style.fontSize = "2.72rem"; // 3.4rem * 80% 
-                
-                // 마감 날짜 포맷 (YYYY.MM.DD)
-                const y = dDayTargetDate.getFullYear();
-                const m = String(dDayTargetDate.getMonth() + 1).padStart(2, '0');
-                const d = String(dDayTargetDate.getDate()).padStart(2, '0');
-                const dateStr = `${y}.${m}.${d}`;
-
-                // 하단에 마감 박스 추가 (날짜 굵게 표시)
-                iconAreaEl.innerHTML = `
-                    <div class="dday-info-box">
-                        ${svgs.calendar}
-                        <span><b>${dateStr}</b> 마감이에요</span>
-                    </div>
-                `;
-
-            } else if (currentMode === MODES.TIMER_1 || currentMode === MODES.TIMER_2) {
-                // 상단에 문구 표시 (시계 아이콘 추가)
-                updateTimerDisplay();
-                displayContentEl.style.fontSize = "2.08rem"; // 2.6rem * 80%
-                
-                // 하단: 달리기 트랙
-                iconAreaEl.innerHTML = `
-                <div class="track-container">
-                    <div class="track-line"></div>
-                    <div class="runner-heart" id="runnerHeart">
-                        ${svgs.heartRunner}
-                    </div>
-                </div>`;
-                
-                // 트랙 초기 위치 설정
-                updateRunnerPosition();
-            }
-        }
-
-        function updateRunnerPosition() {
-            const runner = document.getElementById('runnerHeart');
-            if (runner && totalTime > 0) {
-                // 진행률 계산 (0% ~ 100%)
-                const progress = ((totalTime - timeLeft) / totalTime) * 100;
-                runner.style.left = `${progress}%`;
-            }
-        }
-
-        function updateTimerDisplay() {
-            // 상단 텍스트 업데이트 (PAUSED 상태 반영 + 시계 아이콘 추가)
-            // 현재 모드에 따라 시간 가져오기
-            const currentMins = currentMode === MODES.TIMER_1 ? timer1Minutes : timer2Minutes;
-            const timerText = `${formatMinutesToHM(currentMins)} FOCUS`;
-            
-            if (isPaused) {
-                topTextEl.innerHTML = "PAUSED";
-            } else {
-                // 시계 아이콘 + 텍스트 + 시계 아이콘
-                topTextEl.innerHTML = `${svgs.miniClock} ${timerText} ${svgs.miniClock}`;
-            }
-
-            // 남은 시간 표시
-            const displayFormat = formatSecondsToDisplay(timeLeft);
-            if (displayFormat.hasHours) {
-                // 1시간 이상: "1H 30M" 형식 (콜론 깜빡임 없음)
-                displayContentEl.innerHTML = `<span>${displayFormat.text}</span>`;
-            } else {
-                // 1시간 미만: "MM:SS" 형식 (콜론 깜빡임)
-                const m = Math.floor(timeLeft / 60).toString().padStart(2, '0');
-                const s = (timeLeft % 60).toString().padStart(2, '0');
-                const colonClass = isPaused ? "colon paused" : "colon";
-                displayContentEl.innerHTML = `<span id="hours">${m}</span><span class="${colonClass}">:</span><span id="minutes">${s}</span>`;
-            }
-            
-            // 러너 위치 업데이트
-            updateRunnerPosition();
-        }
-
-        function updateClock() {
-            if (currentMode !== MODES.CLOCK) return;
-
-            const now = new Date();
-            const year = now.getFullYear();
-            const month = String(now.getMonth() + 1).padStart(2, '0');
-            const day = String(now.getDate()).padStart(2, '0');
-            const dayNames = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
-            topTextEl.textContent = `${year}.${month}.${day} ${dayNames[now.getDay()]}`;
-
-            let hours = now.getHours();
-            const minutes = String(now.getMinutes()).padStart(2, '0');
-            const ampm = hours >= 12 ? 'PM' : 'AM';
-            
-            hours = hours % 12;
-            hours = hours ? hours : 12;
-            hours = String(hours).padStart(2, '0');
-
-            // --- 3. 슬롯머신 효과 (분 변경 감지) ---
-            let minHtml = minutes;
-            if (lastMinute !== minutes && lastMinute !== -1) {
-                minHtml = `<span class="rolling-digit">${minutes}</span>`;
-            }
-            lastMinute = minutes;
-
-            // 시계 모드 폰트 크기 축소: 2.6rem -> 2.08rem (80%)
-            displayContentEl.style.fontSize = "2.08rem";
-            displayContentEl.innerHTML = `<span id="hours">${hours}</span><span class="colon">:</span><span id="minutes">${minHtml}</span><span class="ampm">${ampm}</span>`;
-        }
-
-        function showAlert(msg) {
-            alertMessage.textContent = msg;
-            alertModal.style.display = 'flex';
-        }
-
-        init();
+        
+        // 페이지 로드 시 한 번 실행
+        updateWidget();
     </script>
-
-<deepl-input-controller translate="no"><template shadowrootmode="open"><link rel="stylesheet" href="chrome-extension://cofdbpoegempjloogbagkncekinflcnj/build/content.css"><div dir="ltr" style="visibility: initial !important;"><div class="dl-input-translation-container svelte-95aucy"><div></div></div></div></template></deepl-input-controller></body></html>
+</body>
+</html>
